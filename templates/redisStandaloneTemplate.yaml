@@ -1,0 +1,115 @@
+#@ load("@ytt:data", "data")
+
+---
+apiVersion: secretgen.k14s.io/v1alpha1
+kind: Password
+metadata:
+ name: #@ data.values.instance_name + "-redis-password"
+ namespace: #@ data.values.service_namespace
+spec:
+ length: 64
+ secretTemplate:
+   type: Opaque
+   stringData:
+     password: $(value)
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta1 
+kind: Redis
+metadata:
+  name: #@ data.values.instance_name
+  namespace: #@ data.values.service_namespace
+  labels:
+    app.kubernetes.io/component: middleware
+    app.kubernetes.io/instance: #@ data.values.instance_name
+    app.kubernetes.io/name: #@ data.values.instance_name
+spec:
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v6.2.5
+    imagePullPolicy: IfNotPresent
+    redisSecret:
+      name: #@ data.values.instance_name + "-redis-password"
+      key: password
+  redisExporter:
+    enabled: true
+    image: quay.io/opstree/redis-exporter:1.0
+    imagePullPolicy: IfNotPresent
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: redis-secret-template-reader
+  namespace: #@ data.values.service_namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: redis-secret-template-reader
+  namespace: #@ data.values.service_namespace
+rules:
+- apiGroups:
+  - "*"
+  resources:
+  - secrets
+  - services
+  - redis
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: redis-secret-template-reader
+  namespace: #@ data.values.service_namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: redis-secret-template-reader
+subjects:
+- kind: ServiceAccount
+  name: redis-secret-template-reader
+---
+apiVersion: secretgen.carvel.dev/v1alpha1
+kind: SecretTemplate
+metadata:
+ name: #@ data.values.instance_name + "-redis-secret"
+ namespace: #@ data.values.service_namespace
+spec:
+ serviceAccountName: redis-secret-template-reader
+ inputResources:
+ - name: redis-instance
+   ref:
+     apiVersion: redis.redis.opstreelabs.in/v1beta1
+     kind: Redis
+     name: #@ data.values.instance_name
+ - name: redis-service
+   ref:
+    apiVersion: v1
+    kind: Service
+    name: #@ data.values.instance_name 
+ - name: creds
+   ref:
+     apiVersion: v1
+     kind: Secret
+     name: "$(.redis-instance.spec.kubernetesConfig.redisSecret.name)"
+ template:
+  metadata:
+   labels:
+     app.kubernetes.io/component: redis
+     app.kubernetes.io/instance: "$(.redis-instance.metadata.name)"
+     services.apps.tanzu.vmware.com/class: redis-standalone
+  stringData:
+    port: $(.redis-service.spec.ports[?(@.name=="redis-client")].port)
+    host: "$(.redis-service.metadata.name).$(.redis-service.metadata.namespace)"
+    provider: redis
+    type: redis
+  data:
+    password: $(.creds.data.password)

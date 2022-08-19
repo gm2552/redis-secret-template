@@ -1,0 +1,26 @@
+---
+apiVersion: services.apps.tanzu.vmware.com/v1alpha1
+kind: ClusterInstanceClass
+metadata:
+  name: redis-standalone
+spec:
+  description:
+    short: Standalone Redis (Single Instance)
+  pool:
+    kind: Secret
+    labelSelector:
+      matchLabels:
+        services.apps.tanzu.vmware.com/class: redis-standalone
+---
+apiVersion: services.apps.tanzu.vmware.com/v1alpha1
+kind: ClusterInstanceClass
+metadata:
+  name: redis-cluster
+spec:
+  description:
+    short: Redis Cluster (Multi Instance Leader/Follower)
+  pool:
+    kind: Secret
+    labelSelector:
+      matchLabels:
+        services.apps.tanzu.vmware.com/class: redis-cluster

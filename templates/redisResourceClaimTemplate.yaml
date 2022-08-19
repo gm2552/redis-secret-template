@@ -1,0 +1,42 @@
+#@ load("@ytt:data", "data")
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: redis-secret-reader
+  labels:
+    servicebinding.io/controller: "true"
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: services.apps.tanzu.vmware.com/v1alpha1
+kind: ResourceClaimPolicy
+metadata:
+  name: redis-cross-namespace
+  namespace: #@ data.values.service_namespace
+spec:
+  consumingNamespaces:
+  - '*'
+  subject:
+    group: ""
+    kind: Secret
+---
+apiVersion: services.apps.tanzu.vmware.com/v1alpha1
+kind: ResourceClaim
+metadata:
+  name: #@ data.values.instance_name
+  namespace: #@ data.values.workload_namespace
+spec:
+  ref:
+    apiVersion: v1
+    kind: Secret
+    name: #@ data.values.instance_name + "-redis-secret"
+    namespace: #@ data.values.service_namespace

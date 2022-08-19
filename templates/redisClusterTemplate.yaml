@@ -1,0 +1,121 @@
+#@ load("@ytt:data", "data")
+
+---
+apiVersion: secretgen.k14s.io/v1alpha1
+kind: Password
+metadata:
+ name: #@ data.values.instance_name + "-redis-password"
+ namespace: #@ data.values.service_namespace
+spec:
+ length: 64
+ secretTemplate:
+   type: Opaque
+   stringData:
+     password: $(value)
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta1 
+kind: RedisCluster
+metadata:
+  name: #@ data.values.instance_name
+  namespace: #@ data.values.service_namespace
+  labels:
+    app.kubernetes.io/component: middleware
+    app.kubernetes.io/instance: #@ data.values.instance_name
+    app.kubernetes.io/name: #@ data.values.instance_name
+spec:
+  clusterSize: 3
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v6.2.5
+    imagePullPolicy: IfNotPresent
+    redisSecret:
+      name: #@ data.values.instance_name + "-redis-password"
+      key: password
+  redisExporter:
+    enabled: true
+    image: quay.io/opstree/redis-exporter:1.0
+    imagePullPolicy: IfNotPresent
+  redisLeader:
+    replicas: 3
+  redisFollower:
+    replicas: 3
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: redis-cluster-secret-template-reader
+  namespace: #@ data.values.service_namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: redis-cluster-secret-template-reader
+  namespace: #@ data.values.service_namespace
+rules:
+- apiGroups:
+  - "*"
+  resources:
+  - secrets
+  - services
+  - redisclusters
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: redis-cluster-secret-template-reader
+  namespace: #@ data.values.service_namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: redis-cluster-secret-template-reader
+subjects:
+- kind: ServiceAccount
+  name: redis-cluster-secret-template-reader
+---
+apiVersion: secretgen.carvel.dev/v1alpha1
+kind: SecretTemplate
+metadata:
+ name: #@ data.values.instance_name + "-redis-secret"
+ namespace: #@ data.values.service_namespace
+spec:
+ serviceAccountName: redis-cluster-secret-template-reader
+ inputResources:
+ - name: redis-instance
+   ref:
+     apiVersion: redis.redis.opstreelabs.in/v1beta1
+     kind: RedisCluster
+     name: #@ data.values.instance_name
+ - name: redis-service
+   ref:
+    apiVersion: v1
+    kind: Service
+    name: #@ data.values.instance_name + "-leader"
+ - name: creds
+   ref:
+     apiVersion: v1
+     kind: Secret
+     name: "$(.redis-instance.spec.kubernetesConfig.redisSecret.name)"
+ template:
+  metadata:
+   labels:
+     app.kubernetes.io/component: redis
+     app.kubernetes.io/instance: "$(.redis-instance.metadata.name)"
+     services.apps.tanzu.vmware.com/class: redis-cluster
+  stringData:
+    port: $(.redis-service.spec.ports[?(@.name=="redis-client")].port)
+    cluster: 
+      nodes: "$(.redis-service.metadata.name).$(.redis-service.metadata.namespace)"
+    provider: redis
+    type: redis
+  data:
+    password: $(.creds.data.password)
