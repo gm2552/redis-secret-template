@@ -113,7 +113,7 @@ tanzu service claimable list --class redis-standalone -n service-instances
 This step will manually create a claim for Redis instance and make it available to other workload namespaces.  Run the following command to create the resource claim (this assumes that you deploy workloads to a namespace named `workloads`):
 
 ```
-ytt -f redisResourceClaimTemplate.yaml -v service_namespace=service-instances -v instance_name=redis-standalone-test -v workload_namespace=workloads
+ytt -f redisResourceClaimTemplate.yaml -v service_namespace=service-instances -v instance_name=redis-standalone-test -v workload_namespace=workloads | kubectl apply -f-
 ```
 
 Verify that the resource claim is available with the following command:
@@ -135,5 +135,5 @@ You should see something similar to the following:
 Deploy the sample workload to your TAP by running the following command:
 
 ```
-ytt -f workloadTemplate.yaml -v instance_name=redis-standalone-test -v workload_namespace=workloads
+ytt -f workloadTemplate.yaml -v instance_name=redis-standalone-test -v workload_namespace=workloads | kubectl apply -f-
 ```
