@@ -79,6 +79,13 @@ If successful, a secret compliant with the service binding spec should be genera
 kubectl get secret redis-standalone-test-redis-secret -n service-instances
 ```
 
+You should see something similar to the following:
+
+```
+NAME                                 TYPE     DATA   AGE
+redis-standalone-test-redis-secret   Opaque   5      59s 
+```
+
 ### Create ClusterInstanceClass and ResourceClaims
 
 To make the Redis instances discoverable by the tanzu cli, you will need to install the ClusterInstanceClass CRs.  You can do so by running the following command from the *template* directory.
@@ -106,6 +113,13 @@ Run the following command to view your unclaimed Redis instance:
 
 ```
 tanzu service claimable list --class redis-standalone -n service-instances
+```
+
+You should see something similar to the following:
+
+```
+  NAME                                NAMESPACE          KIND    APIVERSION  
+  redis-standalone-test-redis-secret  service-instances  Secret  v1   
 ```
 
 ### Create a Resource Claim
@@ -136,4 +150,10 @@ Deploy the sample workload to your TAP by running the following command:
 
 ```
 ytt -f workloadTemplate.yaml -v instance_name=redis-standalone-test -v workload_namespace=workloads | kubectl apply -f-
+```
+
+After a few minutes (depending on network latency and caching), you can validate the application deploy successfully running the following command:
+
+```
+tanzu apps workloads get student-redis-sample -n workloads
 ```
