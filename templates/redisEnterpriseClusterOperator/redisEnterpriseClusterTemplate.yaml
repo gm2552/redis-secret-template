@@ -7,7 +7,7 @@ metadata:
  name: #@ data.values.instance_name + "-cluster"
  namespace: #@ data.values.service_namespace
 spec:
-  nodes: 3
+  nodes: 1
 ---
 apiVersion: app.redislabs.com/v1alpha1
 kind: RedisEnterpriseDatabase
