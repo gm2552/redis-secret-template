@@ -1,0 +1,12 @@
+apiVersion: services.apps.tanzu.vmware.com/v1alpha1
+kind: ClusterInstanceClass
+metadata:
+  name: redis-enterprise-cluster
+spec:
+  description:
+    short: Redis Enterprise Cluster
+  pool:
+    kind: Secret
+    labelSelector:
+      matchLabels:
+        services.apps.tanzu.vmware.com/class: redis-enterprise-cluster

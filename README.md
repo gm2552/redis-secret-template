@@ -3,7 +3,7 @@ A demonstration of using Tanzu SecretTemplate to create a K8s compatible service
 
 This is POC demonstrating:
 
-* Using an open source Redis distribution and Operator to deploy either a standalone or clustered instance of Redis
+* Using a Redis distribution and Operator to deploy either a standalone or clustered instance of Redis. 
 * Creeating a Kubernetes Service Binding compliant secret using a SecretTemplate
 * Claiming the Redis instance with the service toolkit.
 * Consumer the Redis instance from a workload.
@@ -26,134 +26,74 @@ You also need the following tools installed on your local workstation:
 * ytt
 * kubectl
 * tanzu cli
-* helm>3.0.0
+* helm>3.0.0 (for use with the Opstree Solutions operator).
 
 It also assumes `kubectl`, and `tanzu cli` are configured to access a TAP cluster described above.
 
 ## Install and Run POC
 
-### Install the Redis Operator
-
-This POC uses a Redis operator from [OperatorHub.io](https://operatorhub.io/operator/redis-operator).  To install the operator, you will need to run the following help commands:
+You will need to create namespace to run the operator and Redis instances and namespace to deploy the sample application/workload.  For this POC, you will use the namespace `service-instances` for you Redis instances and a namespace of your choice for the workloads.  Create the namespace for the Redis instances if it doesn't already exist using the following command:
 
 ```
 kubectl create ns service-instances
-
-helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
-helm upgrade redis-operator ot-helm/redis-operator --install --namespace redis-operator
-```
-
-Validate the operator is installed with the following command:
-
-```
-kubectl get pods -n redis-operator
-```
-
-You should see something similar to the following:
-
-```
-NAME                              READY   STATUS    RESTARTS   AGE
-redis-operator-74b6cbf5c5-td8t7   1/1     Running   0          2m11s
 ```
 
 ### Checkout/Clone the Code
 
-Clone the Git Repo to your workstating running the following command:
+All of the configuration as well as the sample application are located in a central GitRepositoy.  Clone the Git Repo to your workstating running the following command:
 
 ```
 git clone https://github.com/gm2552/redis-secret-template
 ```
 
-### Deploy a Standalone Redis Instance
+### Install a Redis Operator
 
-Navigate to the directory where you cloned the repo, and run the following commands to deploy an instance of a standalone Redis server to the "service-instances" namespace.
+You will now need to install a Redis operator as well the appropriate TAP services toolkit resources.  You will also deploy an instance of Redis using the operator.  Instruction for each supported operator are at the links below.  
 
-```
-cd templates
-ytt -f redisStandaloneTemplate.yaml -v service_namespace=service-instances -v instance_name=redis-standalone-test | kb apply -f-
-```
+* [Opstree Solution OSS Operator](docs/opsTreeOperator.md)
+* [Redis Cluster Enterprise Operator](docs/redisClusterEnterprisOperator.md)
 
-If successful, a secret compliant with the service binding spec should be generated.  Verify the secret exists by running the following command:
-
-```
-kubectl get secret redis-standalone-test-redis-secret -n service-instances
-```
-
-You should see something similar to the following:
-
-```
-NAME                                 TYPE     DATA   AGE
-redis-standalone-test-redis-secret   Opaque   5      59s 
-```
-
-### Create ClusterInstanceClass and ResourceClaims
-
-To make the Redis instances discoverable by the tanzu cli, you will need to install the ClusterInstanceClass CRs.  You can do so by running the following command from the *template* directory.
-
-```
-kubectl apply -f redisInstanceClasses.yaml
-```
-
-Validate that the class exists and that you can see your new standalone Redis instance exists.  Run the following command:
-
-```
-tanzu service class list
-```
-
-You should see something similar to the following:
-
-```
-  NAME              DESCRIPTION                                     
-  ...                        
-  redis-cluster     Redis Cluster (Multi Instance Leader/Follower)  
-  redis-standalone  Standalone Redis (Single Instance)  
-```
-
-Run the following command to view your unclaimed Redis instance:
-
-```
-tanzu service claimable list --class redis-standalone -n service-instances
-```
-
-You should see something similar to the following:
-
-```
-  NAME                                NAMESPACE          KIND    APIVERSION  
-  redis-standalone-test-redis-secret  service-instances  Secret  v1   
-```
-
-### Create a Resource Claim
-
-This step will manually create a claim for Redis instance and make it available to other workload namespaces.  Run the following command to create the resource claim (this assumes that you deploy workloads to a namespace named `workloads`):
-
-```
-ytt -f redisResourceClaimTemplate.yaml -v service_namespace=service-instances -v instance_name=redis-standalone-test -v workload_namespace=workloads | kubectl apply -f-
-```
-
-Verify that the resource claim is available with the following command:
-
-```
-tanzu service claims list -n workloads
-```
-
-You should see something similar to the following:
-
-```
-  NAME                   READY  REASON  
-  ...  
-  redis-standalone-test  True   Ready   
-```
+**NOTE**
+In either operator selective above, you will give your Redis instance a name.  You will need that instance name for the next section when deploying the workload.
 
 ### Deploy Workload
 
-Deploy the sample workload to your TAP by running the following command:
+Navigate to the directory where you cloned the repo and deploy the sample workload to your TAP by running the following command substituting <INSTANCE_NAME> with the redis instance name you used the previous section.
 
 ```
-ytt -f workloadTemplate.yaml -v instance_name=redis-standalone-test -v workload_namespace=workloads | kubectl apply -f-
+cd templates
+ytt -f workloadTemplate.yaml -v instance_name=<INSTANCE_NAME> -v workload_namespace=workloads | kubectl apply -f-
 ```
 
 After a few minutes (depending on network latency and caching), you can validate the application deploy successfully running the following command:
 
 ```
 tanzu apps workloads get student-redis-sample -n workloads
+```
+
+If the application was deployed successfully, you should see an output similar to the following:
+
+```
+---
+# student-redis-sample: Ready
+.
+.
+.
+Pods
+NAME                                                     STATUS      RESTARTS   AGE
+student-redis-sample-00001-deployment-6846f988b-r98mb    Running     4          2m45s
+student-redis-sample-00002-deployment-7cc94b89cc-xtkzp   Running     0          2m45s
+student-redis-sample-build-1-build-pod                   Succeeded   0          15m
+student-redis-sample-config-writer-4kgjw-pod             Succeeded   0          3m20s
+
+Knative Services
+NAME                   READY   URL
+student-redis-sample   Ready   https://student-redis-sample.perfect300rock.com
+---
+```
+
+You can navigate to the URL above appending `/student` to the end of the URL to ensure that application is communication successfully with the Redis instance.  You should see something similar to below:
+
+```
+[{"id":"Eng2015001","name":"John Doe","gender":"MALE","grade":1}]
 ```

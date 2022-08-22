@@ -5,7 +5,7 @@ metadata:
   name: redis-standalone
 spec:
   description:
-    short: Standalone Redis (Single Instance)
+    short: Standalone Redis (Single Instance) from Opstree
   pool:
     kind: Secret
     labelSelector:
@@ -18,7 +18,7 @@ metadata:
   name: redis-cluster
 spec:
   description:
-    short: Redis Cluster (Multi Instance Leader/Follower)
+    short: Redis Cluster (Multi Instance Leader/Follower) from Opstree
   pool:
     kind: Secret
     labelSelector:

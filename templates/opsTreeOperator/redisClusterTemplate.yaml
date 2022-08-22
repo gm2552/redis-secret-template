@@ -114,7 +114,7 @@ spec:
   stringData:
     port: $(.redis-service.spec.ports[?(@.name=="redis-client")].port)
     cluster.nodes: '$(.redis-service.metadata.name).$(.redis-service.metadata.namespace):$(.redis-service.spec.ports[?(@.name=="redis-client")].port)'
-    provider: redis
+    provider: opstree-solutions
     type: redis
   data:
     password: $(.creds.data.password)

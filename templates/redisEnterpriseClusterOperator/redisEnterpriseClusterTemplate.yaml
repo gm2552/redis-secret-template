@@ -1,0 +1,85 @@
+#@ load("@ytt:data", "data")
+
+---
+apiVersion: "app.redislabs.com/v1"
+kind: RedisEnterpriseCluster
+metadata:
+ name: #@ data.values.instance_name + "-cluster"
+ namespace: #@ data.values.service_namespace
+spec:
+  nodes: 3
+---
+apiVersion: app.redislabs.com/v1alpha1
+kind: RedisEnterpriseDatabase
+metadata:
+  name: #@ data.values.instance_name + "-db"
+  namespace: #@ data.values.service_namespace  
+spec:
+  memorySize: 1GB
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: redis-enterprise-cluster-secret-template-reader
+  namespace: #@ data.values.service_namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: redis-enterprise-cluster-secret-template-reader
+  namespace: #@ data.values.service_namespace
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: redis-enterprise-cluster-secret-template-reader
+  namespace: #@ data.values.service_namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: redis-enterprise-cluster-secret-template-reader
+subjects:
+- kind: ServiceAccount
+  name: redis-enterprise-cluster-secret-template-reader
+---
+apiVersion: secretgen.carvel.dev/v1alpha1
+kind: SecretTemplate
+metadata:
+ name: #@ data.values.instance_name + "-redis-secret"
+ namespace: #@ data.values.service_namespace
+spec:
+ serviceAccountName: redis-enterprise-cluster-secret-template-reader
+ inputResources:
+ - name: redis-service
+   ref:
+    apiVersion: v1
+    kind: Service
+    name: #@ data.values.instance_name  + "-db"
+ - name: creds
+   ref:
+     apiVersion: v1
+     kind: Secret
+     name: #@ "redb-" + data.values.instance_name + "-db"
+ template:
+  metadata:
+   labels:
+     app.kubernetes.io/component: redis
+     app.kubernetes.io/instance: #@ data.values.instance_name
+     services.apps.tanzu.vmware.com/class: redis-enterprise-cluster
+  stringData:
+    host: "$(.redis-service.metadata.name).$(.redis-service.metadata.namespace)"
+    provider: redis_enterprise
+    type: redis
+  data:
+    password: $(.creds.data.password)
+    port: $(.creds.data.port)
