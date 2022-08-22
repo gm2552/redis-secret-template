@@ -113,8 +113,7 @@ spec:
      services.apps.tanzu.vmware.com/class: redis-cluster
   stringData:
     port: $(.redis-service.spec.ports[?(@.name=="redis-client")].port)
-    cluster: 
-      nodes: "$(.redis-service.metadata.name).$(.redis-service.metadata.namespace)"
+    cluster.nodes: '$(.redis-service.metadata.name).$(.redis-service.metadata.namespace):$(.redis-service.spec.ports[?(@.name=="redis-client")].port)'
     provider: redis
     type: redis
   data:
