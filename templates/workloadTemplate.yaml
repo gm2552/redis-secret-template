@@ -17,9 +17,9 @@ spec:
   serviceClaims: 
     - name: redis
       ref:
-        apiVersion: v1
-        kind: Secret
-        name: #@ data.values.instance_name + "-redis-secret"
+        apiVersion: services.apps.tanzu.vmware.com/v1alpha1
+        kind: ResourceClaim
+        name: #@ data.values.instance_name
   source:
     git:
       url: https://github.com/gm2552/redis-secret-template.git
