@@ -30,7 +30,7 @@ Navigate to the directory where you cloned the repo, and run the following comma
 
 ```
 cd templates
-ytt -f opsTreeOperator/redisStandaloneTemplate.yaml -v service_namespace=service-instances -v instance_name=redis-standalone-test | kb apply -f-
+ytt -f opsTreeOperator/redisStandaloneTemplate.yaml -v service_namespace=service-instances -v instance_name=redis-standalone-test | kubectl apply -f-
 ```
 
 It may take a few minutes for the cluster pod to get up and running.

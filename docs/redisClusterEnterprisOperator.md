@@ -31,7 +31,7 @@ Navigate to the directory where you cloned the repo, and run the following comma
 
 ```
 cd templates
-ytt -f redisEnterpriseClusterOperator/redisEnterpriseClusterTemplate.yaml -v service_namespace=service-instances -v instance_name=redis-test | kb apply -f-
+ytt -f redisEnterpriseClusterOperator/redisEnterpriseClusterTemplate.yaml -v service_namespace=service-instances -v instance_name=redis-test | kubectl apply -f-
 ```
 
 If successful, a secret compliant with the service binding spec should be generated.  Verify the secret exists by running the following command:
