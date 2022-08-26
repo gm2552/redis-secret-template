@@ -11,10 +11,13 @@ spec:
   redisEnterpriseNodeResources:
     limits:
       cpu: "2000m"
-      memory: 2Gi
+      memory: 4Gi
     requests:
       cpu: "100m"
       memory: 1Gi
+  persistentSpec:
+   enabled: true
+   volumeSize: 10Gi
 ---
 apiVersion: app.redislabs.com/v1alpha1
 kind: RedisEnterpriseDatabase
